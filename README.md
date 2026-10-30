@@ -1,66 +1,148 @@
-# marky
+<div align="center">
 
-[English](README.md) | [Português (Brasil)](README.pt-BR.md)
+# 📝 marky
 
-Render Markdown in the terminal in a clean, pleasant-to-read way. marky wraps text to your window, centers it at a comfortable reading width, and opens an interactive pager when the document is taller than the terminal.
+### Beautiful Markdown, right in your terminal.
 
-## Install
+Clean typography, zero syntax noise, and a smooth pager for long docs.
+
+![Go](https://img.shields.io/badge/Go-1.26-00ADD8?style=for-the-badge&logo=go&logoColor=white) ![Platforms](https://img.shields.io/badge/macOS%20·%20Linux%20·%20Windows-1E1E2E?style=for-the-badge&logo=gnometerminal&logoColor=CBA6F7) ![Charm](https://img.shields.io/badge/Built%20with-Charm-CBA6F7?style=for-the-badge)
+
+[Install](#-install) · [Usage](#-usage) · [Features](#-features) · [Replace cat](#-use-it-as-cat) · [Development](#-development)
+
+**English** · [Português](README.pt-BR.md)
+
+<img src="docs/screenshot.png" alt="marky rendering a Markdown document in the terminal" width="760">
+
+<sub>Rendering <code>docs/demo.md</code> with the dark theme.</sub>
+
+</div>
+
+---
+
+## ✨ Why marky?
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+🧼 **No syntax noise**<br>
+No `#`, `*`, `` ` `` or `>` on screen. Structure comes from color and typography.
+
+</td>
+<td width="50%" valign="top">
+
+🎨 **Modern theme**<br>
+Catppuccin Mocha on dark terminals, Latte on light ones. Code blocks get matching syntax highlighting.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+📐 **Fits your window**<br>
+Wraps to the terminal width, capped at a comfortable 100 columns and centered.
+
+</td>
+<td width="50%" valign="top">
+
+📜 **Built-in pager**<br>
+Long docs open in a `less`-style viewer with a progress bar. Press `q` to leave.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+🔁 **Resize-aware**<br>
+Re-wraps live when the window changes and keeps your place.
+
+</td>
+<td width="50%" valign="top">
+
+🧩 **Pipe-friendly**<br>
+Plain, escape-free text when stdout is not a terminal.
+
+</td>
+</tr>
+</table>
+
+## 📦 Install
+
+With Go 1.26 or newer:
 
 ```sh
 go install github.com/silviohfc/marky@latest
 ```
 
-Or build from a checkout:
+Or build from source:
 
 ```sh
+git clone https://github.com/silviohfc/marky && cd marky
 go build -o marky .
 ```
 
-## Usage
+## 🚀 Usage
 
 ```sh
-marky README.md
-cat notes.md | marky
-marky - < notes.md
-marky --style light --width 72 notes.md
-marky --no-pager notes.md | less -R
+marky README.md                      # render a file
+cat CHANGELOG.md | marky             # render from a pipe
+marky --style light --width 72 a.md  # pick theme and width
+marky --pager notes.md               # always open the viewer
+marky --no-pager notes.md > out.txt  # plain text, no colors
 ```
 
-With no file, or with `-`, marky reads from standard input.
+> [!TIP]
+> With no file, marky reads piped input. If nothing is piped, it shows the help instead of waiting. Use `-` to type Markdown by hand and finish with <kbd>Ctrl</kbd>+<kbd>D</kbd>.
 
 ### Flags
 
-| Flag | Description |
-|------|-------------|
-| `--style dark\|light\|auto` | Color style. `auto` (default) detects the terminal background. Ignored when stdout is not a TTY. |
-| `--width N` | Word-wrap width in columns. Default: terminal width, capped at 100. Without a TTY: 80. |
-| `--pager` | Always open the interactive viewer (when stdout is a TTY). |
-| `--no-pager` | Always print plainly. |
-| `--version` | Print the version. |
-| `--help` | Print usage. |
+| Flag | Default | Description |
+|:-----|:-------:|:------------|
+| `--style` | `auto` | `dark`, `light` or `auto` (detects the terminal background). |
+| `--width N` | terminal | Wrap width in columns. Capped at 100 on a TTY, 80 otherwise. |
+| `--pager` |  | Always open the interactive viewer. |
+| `--no-pager` |  | Always print, never open the viewer. |
+| `--version` |  | Print the version. |
+| `-h`, `--help` |  | Show the help. |
 
-The viewer opens when stdout is a TTY and the rendered document has more lines than the terminal height. When stdout is not a TTY (a pipe or file), marky always prints plainly, without colors or escape codes. The text is still rendered from Markdown (wrapped at 80 columns, with list bullets, table borders and so on), so the output is readable but not byte-identical to the input.
+## 🧭 Features
+
+### When does the pager open?
+
+```mermaid
+flowchart LR
+    A([marky]) --> B{"stdout is a terminal?"}
+    B -->|no| P["Print plain text"]
+    B -->|yes| C{"--pager / --no-pager?"}
+    C -->|"--pager"| V[["Open pager"]]
+    C -->|"--no-pager"| S["Print with colors"]
+    C -->|auto| D{"Taller than the window?"}
+    D -->|yes| V
+    D -->|no| S
+```
 
 ### Pager keys
 
-| Key | Action |
-|-----|--------|
-| `q`, `Esc`, `Ctrl+C` | Quit |
-| `j`, `Down` / `k`, `Up` | Scroll one line |
-| `Space`, `f`, `PgDn` / `b`, `PgUp` | Scroll one page |
-| `d` / `u` | Scroll half a page |
-| `g`, `Home` / `G`, `End` | Top / bottom |
-| Mouse wheel | Scroll |
+| Keys | Action |
+|:-----|:-------|
+| <kbd>q</kbd> <kbd>Esc</kbd> <kbd>Ctrl</kbd>+<kbd>C</kbd> | Quit |
+| <kbd>j</kbd> <kbd>k</kbd> <kbd>↓</kbd> <kbd>↑</kbd> | Scroll one line |
+| <kbd>Space</kbd> <kbd>f</kbd> <kbd>PgDn</kbd> · <kbd>b</kbd> <kbd>PgUp</kbd> | Page down · up |
+| <kbd>d</kbd> · <kbd>u</kbd> | Half page down · up |
+| <kbd>g</kbd> <kbd>Home</kbd> · <kbd>G</kbd> <kbd>End</kbd> | Top · bottom |
+| 🖱️ wheel | Scroll |
 
-The footer shows the file name, scroll percentage and a key hint. Resizing the terminal re-wraps the document and keeps the scroll position roughly proportional. The pager uses the alternate screen, so your terminal is restored on exit.
+The footer shows the file name, key hints, a progress bar and the percentage read. The viewer uses the alternate screen, so your terminal comes back untouched.
 
-## Using marky as a replacement for cat
+## 🐱 Use it as `cat`
 
-marky is not a drop-in `cat`: it renders Markdown, so it would mangle other files and does not understand `cat` flags such as `-n`. The safe approach is a wrapper that uses marky only when **every argument is an existing `.md` or `.markdown` file and stdout is a terminal**, and otherwise runs the real `cat` (other files, flags like `-n`, pipes and redirects).
+Make `cat README.md` render beautifully, while `cat` keeps working everywhere else. The wrapper calls marky only when **every argument is an existing `.md`/`.markdown` file and the output is a terminal**. Everything else (other files, `-n`, pipes, redirects) goes to the real `cat`.
 
-### Safe wrapper
+Pick your shell, paste the snippet into its config file, then reload it:
 
-**bash** - `~/.bashrc`
+<details open>
+<summary><b>Bash</b> · <code>~/.bashrc</code></summary>
 
 ```bash
 cat() {
@@ -78,7 +160,12 @@ cat() {
 }
 ```
 
-**zsh** - `~/.zshrc`
+Reload: `source ~/.bashrc`
+
+</details>
+
+<details>
+<summary><b>Zsh</b> · <code>~/.zshrc</code></summary>
 
 ```zsh
 cat() {
@@ -96,7 +183,12 @@ cat() {
 }
 ```
 
-**fish** - `~/.config/fish/functions/cat.fish` (or `~/.config/fish/config.fish`)
+Reload: `source ~/.zshrc`
+
+</details>
+
+<details>
+<summary><b>Fish</b> · <code>~/.config/fish/functions/cat.fish</code></summary>
 
 ```fish
 function cat --wraps cat --description 'cat, with marky for Markdown files'
@@ -114,7 +206,12 @@ function cat --wraps cat --description 'cat, with marky for Markdown files'
 end
 ```
 
-**PowerShell** - `$PROFILE`
+Reload: `source ~/.config/fish/config.fish`
+
+</details>
+
+<details>
+<summary><b>PowerShell</b> · <code>$PROFILE</code></summary>
 
 ```powershell
 Remove-Item Alias:cat -Force -ErrorAction SilentlyContinue
@@ -130,7 +227,12 @@ function cat {
 }
 ```
 
-**Nushell** - `config.nu` (`config nu` opens it)
+Reload: `. $PROFILE`
+
+</details>
+
+<details>
+<summary><b>Nushell</b> · <code>config.nu</code></summary>
 
 ```nu
 def --wrapped cat [...args: string] {
@@ -145,7 +247,12 @@ def --wrapped cat [...args: string] {
 }
 ```
 
-**POSIX sh, dash, ksh** - `~/.profile`, or the file named by `ENV` for interactive shells
+Reload: `restart nu`
+
+</details>
+
+<details>
+<summary><b>POSIX sh · dash · ksh</b> · <code>~/.profile</code></summary>
 
 ```sh
 cat() {
@@ -163,37 +270,79 @@ cat() {
 }
 ```
 
-### The simple alias (not recommended)
+Reload: `. ~/.profile`
 
-An alias is shorter but replaces `cat` unconditionally. `cat -n file`, `cat a.txt b.txt` and `cat file | less` will all go through the Markdown renderer instead of printing the file as-is. Prefer the wrapper above.
+</details>
 
-Alias variants:
+<details>
+<summary><b>Just want a plain alias?</b></summary>
 
-- bash: `alias cat=marky`
-- zsh: `alias cat=marky`
-- fish: `alias cat marky`
-- PowerShell: `Set-Alias -Name cat -Value marky -Option AllScope -Force`
-- Nushell: `alias cat = marky`
-- POSIX sh, dash, ksh: `alias cat=marky`
+> [!WARNING]
+> An alias sends <i>everything</i> through marky: `cat -n file`, `cat a.txt b.txt` and `cat file | less` will all be rendered as Markdown. Prefer the wrapper.
 
-### Notes
+| Shell | Alias |
+|:------|:------|
+| Bash / Zsh / sh | `alias cat=marky` |
+| Fish | `alias cat marky` |
+| PowerShell | `Set-Alias -Name cat -Value marky -Option AllScope -Force` |
+| Nushell | `alias cat = marky` |
 
-- Aliases and functions only affect interactive shells. Scripts, `make`, cron and other programs still run the real `cat`.
-- Bypass the wrapper for a single call with `command cat file.md` (bash, zsh, fish, POSIX shells) or `\cat file.md` (bash, zsh, POSIX shells). In PowerShell use `Get-Content file.md`; in Nushell use `^cat file.md`.
-- Reload your configuration after editing it, or open a new terminal: `source ~/.bashrc`, `source ~/.zshrc`, `. ~/.profile`, `source ~/.config/fish/config.fish`, `. $PROFILE`, or `source $nu.config-path` in Nushell (Nushell loads its config at startup, so restart it).
-- The Nushell and PowerShell snippets could not be run on the machine where this was written; they follow each shell's documented syntax, so please report problems.
+</details>
 
-## Development
+> [!NOTE]
+> - Aliases and functions only affect **interactive** shells. Scripts, `make` and cron still use the real `cat`.
+> - Skip the wrapper once: `command cat file.md` or `\cat file.md` (POSIX shells), `Get-Content file.md` (PowerShell), `^cat file.md` (Nushell).
+> - The PowerShell and Nushell snippets follow each shell's documented syntax but were not run on the author's machine. Issues welcome.
+
+## 🛠️ Development
 
 ```sh
 go vet ./...
 go test ./...
 ```
 
-`testdata/sample.md` exercises headings, lists, code, tables, blockquotes, links and rules:
+Try it with the sample documents:
 
 ```sh
 go run . testdata/sample.md
+go run . docs/demo.md
 ```
 
-Layout: `main.go` (wiring), `internal/cli` (flags and decisions), `internal/render` (glamour and width), `internal/pager` (bubbletea model).
+<details>
+<summary>Project layout</summary>
+
+```text
+marky/
+├── main.go           # wiring: TTY detection, terminal size, program start
+├── internal/cli/     # flags, input selection and the pager decision
+├── internal/render/  # glamour renderer, theme, width and centering
+├── internal/pager/   # bubbletea viewer and footer
+├── docs/             # demo document and screenshot
+└── testdata/         # sample covering every Markdown element
+```
+
+</details>
+
+<details>
+<summary>Regenerating the screenshot</summary>
+
+The image is made with [freeze](https://github.com/charmbracelet/freeze) from marky's real output at 76 columns:
+
+```sh
+script -q /dev/null sh -c 'stty cols 76; marky --no-pager --style dark docs/demo.md' > demo.ansi
+freeze demo.ansi --language ansi --window --theme catppuccin-mocha \
+  --background "#1E1E2E" --border.radius 10 --border.width 1 --border.color "#45475A" \
+  --shadow.blur 20 --shadow.y 10 --padding "24,32" --margin 24 \
+  --font.family "JetBrains Mono" --font.size 14 --line-height 1.4 \
+  -o docs/screenshot.png
+```
+
+Strip the terminal's query sequences and control characters (`^D`) from `demo.ansi` before running `freeze`.
+
+</details>
+
+---
+
+<div align="center">
+<sub>Built with 💜 on top of [Glamour](https://github.com/charmbracelet/glamour), [Bubble Tea](https://github.com/charmbracelet/bubbletea) and [Lip Gloss](https://github.com/charmbracelet/lipgloss).</sub>
+</div>
