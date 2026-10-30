@@ -9,6 +9,7 @@ import (
 type palette struct {
 	text, muted, subtle, surface, base string
 	primary, secondary, green, peach   string
+	yellow, red, panel                 string
 	codeTheme                          string
 }
 
@@ -17,11 +18,13 @@ var palettes = map[string]palette{
 	"dark": {
 		text: "#CDD6F4", muted: "#7F849C", subtle: "#45475A", surface: "#313244", base: "#1E1E2E",
 		primary: "#89B4FA", secondary: "#CBA6F7", green: "#A6E3A1", peach: "#FAB387",
+		yellow: "#F9E2AF", red: "#F38BA8", panel: "#181825",
 		codeTheme: "catppuccin-mocha",
 	},
 	"light": {
 		text: "#4C4F69", muted: "#8C8FA1", subtle: "#BCC0CC", surface: "#E6E9EF", base: "#EFF1F5",
 		primary: "#1E66F5", secondary: "#8839EF", green: "#40A02B", peach: "#FE640B",
+		yellow: "#DF8E1D", red: "#D20F39", panel: "#E6E9EF",
 		codeTheme: "catppuccin-latte",
 	},
 	// plain keeps the same layout with no colors, for non-TTY output.
@@ -30,19 +33,37 @@ var palettes = map[string]palette{
 
 const documentMargin = 2
 
-// Theme builds a glamour style that shows no Markdown syntax markers
-// (no #, *, ` or > tokens) and draws rules that span the given width.
-func Theme(name string, width int) (ansi.StyleConfig, bool) {
-	p, ok := palettes[name]
-	if !ok {
-		return ansi.StyleConfig{}, false
+// layout says whether glamour renders a whole document or a fragment
+// (the inside of a quote), which has no margin and no surrounding blank lines.
+type layout struct {
+	fragment bool
+	quote    bool
+}
+
+func (l layout) margin() int {
+	if l.fragment {
+		return 0
 	}
-	ruleWidth := max(1, width-2*documentMargin)
+	return documentMargin
+}
+
+// theme builds a glamour style that shows no Markdown syntax markers
+// (no #, *, ` or > tokens) and draws rules that span the given width.
+// Fenced code and quotes never reach glamour: see blocks.go.
+func theme(p palette, width int, l layout) ansi.StyleConfig {
+	ruleWidth := max(1, width-2*l.margin())
+	document := ansi.StyleBlock{
+		StylePrimitive: ansi.StylePrimitive{BlockPrefix: "\n", BlockSuffix: "\n", Color: color(p.text)},
+		Margin:         uintPtr(uint(l.margin())),
+	}
+	if l.fragment {
+		document.BlockPrefix, document.BlockSuffix = "", ""
+	}
+	if l.quote {
+		document.Color, document.Italic = color(p.muted), boolPtr(true)
+	}
 	return ansi.StyleConfig{
-		Document: ansi.StyleBlock{
-			StylePrimitive: ansi.StylePrimitive{BlockPrefix: "\n", BlockSuffix: "\n", Color: color(p.text)},
-			Margin:         uintPtr(documentMargin),
-		},
+		Document:  document,
 		Paragraph: ansi.StyleBlock{},
 		BlockQuote: ansi.StyleBlock{
 			StylePrimitive: ansi.StylePrimitive{Color: color(p.muted), Italic: boolPtr(true)},
@@ -93,7 +114,7 @@ func Theme(name string, width int) (ansi.StyleConfig, bool) {
 			RowSeparator:    strPtr("─"),
 		},
 		DefinitionDescription: ansi.StylePrimitive{BlockPrefix: "\n→ "},
-	}, true
+	}
 }
 
 func color(hex string) *string {
