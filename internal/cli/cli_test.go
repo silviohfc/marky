@@ -234,3 +234,20 @@ func TestRunPrintsPlainTextWithoutTTY(t *testing.T) {
 		t.Fatalf("unexpected escape codes: %q", out.String())
 	}
 }
+
+func TestRunShowsUsageInsteadOfWaitingWhenStdinIsTerminal(t *testing.T) {
+	env, out, errOut, opened := newEnv("", true, 100, 40)
+	env.StdinTTY = true
+	code := Run([]string{}, env)
+	if code != 2 || !strings.Contains(errOut.String(), "Usage") || out.Len() != 0 || len(*opened) != 0 {
+		t.Fatalf("code=%d out=%q err=%q opened=%v", code, out.String(), errOut.String(), *opened)
+	}
+}
+
+func TestRunReadsTerminalStdinWhenDashIsExplicit(t *testing.T) {
+	env, out, _, _ := newEnv("# Typed", false, 0, 0)
+	env.StdinTTY = true
+	if code := Run([]string{"-"}, env); code != 0 || !strings.Contains(out.String(), "Typed") {
+		t.Fatalf("code=%d out=%q", code, out.String())
+	}
+}

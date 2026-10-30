@@ -18,10 +18,11 @@ func main() {
 func environment() cli.Env {
 	stdoutFd := int(os.Stdout.Fd())
 	return cli.Env{
-		Stdin:  os.Stdin,
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
-		IsTTY:  term.IsTerminal(stdoutFd),
+		Stdin:    os.Stdin,
+		StdinTTY: term.IsTerminal(int(os.Stdin.Fd())),
+		Stdout:   os.Stdout,
+		Stderr:   os.Stderr,
+		IsTTY:    term.IsTerminal(stdoutFd),
 		Size: func() (int, int) {
 			w, h, err := term.GetSize(stdoutFd)
 			if err != nil {

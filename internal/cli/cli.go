@@ -30,6 +30,7 @@ type Config struct {
 
 type Env struct {
 	Stdin    io.Reader
+	StdinTTY bool
 	Stdout   io.Writer
 	Stderr   io.Writer
 	IsTTY    bool
@@ -40,14 +41,7 @@ type Env struct {
 
 func Parse(args []string, usageOut io.Writer) (Config, error) {
 	cfg := Config{}
-	fs := flag.NewFlagSet("marky", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-	fs.StringVar(&cfg.Style, "style", "auto", "color style: dark, light or auto")
-	fs.IntVar(&cfg.Width, "width", 0, "word-wrap width in columns (default: terminal width, max 100)")
-	fs.BoolVar(&cfg.ForcePager, "pager", false, "always open the interactive viewer")
-	fs.BoolVar(&cfg.ForcePrint, "no-pager", false, "always print, never open the viewer")
-	fs.BoolVar(&cfg.ShowVersion, "version", false, "print version and exit")
-
+	fs := newFlagSet(&cfg)
 	positional, err := parseInterspersed(fs, args)
 	if errors.Is(err, flag.ErrHelp) {
 		printUsage(fs, usageOut)
@@ -57,6 +51,17 @@ func Parse(args []string, usageOut io.Writer) (Config, error) {
 		return cfg, err
 	}
 	return cfg, validate(&cfg, positional)
+}
+
+func newFlagSet(cfg *Config) *flag.FlagSet {
+	fs := flag.NewFlagSet("marky", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	fs.StringVar(&cfg.Style, "style", "auto", "color style: dark, light or auto")
+	fs.IntVar(&cfg.Width, "width", 0, "word-wrap width in columns (default: terminal width, max 100)")
+	fs.BoolVar(&cfg.ForcePager, "pager", false, "always open the interactive viewer")
+	fs.BoolVar(&cfg.ForcePrint, "no-pager", false, "always print, never open the viewer")
+	fs.BoolVar(&cfg.ShowVersion, "version", false, "print version and exit")
+	return fs
 }
 
 func parseInterspersed(fs *flag.FlagSet, args []string) ([]string, error) {
@@ -92,7 +97,7 @@ func validate(cfg *Config, positional []string) error {
 
 func printUsage(fs *flag.FlagSet, w io.Writer) {
 	fmt.Fprintln(w, "Usage: marky [flags] [FILE.md | -]")
-	fmt.Fprintln(w, "Render Markdown in the terminal. Reads stdin when FILE is omitted or '-'.")
+	fmt.Fprintln(w, "Render Markdown in the terminal. Reads piped stdin when FILE is omitted or '-'.")
 	fmt.Fprintln(w)
 	fs.VisitAll(func(f *flag.Flag) {
 		fmt.Fprintf(w, "  --%-10s %s\n", f.Name, f.Usage)
@@ -130,6 +135,11 @@ func Run(args []string, env Env) int {
 	if cfg.ShowVersion {
 		fmt.Fprintf(env.Stdout, "marky %s\n", Version)
 		return 0
+	}
+	if cfg.Path == "" && env.StdinTTY {
+		// Nothing piped in: show usage instead of waiting on the keyboard.
+		printUsage(newFlagSet(&Config{}), env.Stderr)
+		return 2
 	}
 	name, markdown, err := ReadInput(cfg.Path, env.Stdin)
 	if err != nil {
