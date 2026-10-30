@@ -2,6 +2,8 @@ package render
 
 import (
 	"strings"
+
+	xansi "github.com/charmbracelet/x/ansi"
 	"testing"
 )
 
@@ -90,5 +92,41 @@ func TestRenderWrapsLongParagraphs(t *testing.T) {
 func TestRenderRejectsUnknownStyle(t *testing.T) {
 	if _, err := Render("x", "neon", 80); err == nil {
 		t.Fatal("expected error")
+	}
+}
+
+func TestRenderHidesMarkdownSyntax(t *testing.T) {
+	md := "# One\n\n## Two\n\n### Three\n\n**bold** *em* `code` ~~gone~~\n\n> quote\n\n- [x] done\n"
+	for _, style := range []string{"dark", "light", PlainStyle} {
+		out, err := Render(md, style, 80)
+		if err != nil {
+			t.Fatal(err)
+		}
+		text := xansi.Strip(out)
+		for _, token := range []string{"#", "**", "*em", "`", "~~", "> ", "[x]"} {
+			if strings.Contains(text, token) {
+				t.Errorf("%s: found markdown token %q in %q", style, token, text)
+			}
+		}
+	}
+}
+
+func TestRenderPlainHasNoEscapesOrTrailingSpaces(t *testing.T) {
+	out, err := Render("# Title\n\n**bold** and `code`", PlainStyle, 80)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out, "\x1b") || strings.Contains(out, " \n") {
+		t.Fatalf("got %q", out)
+	}
+}
+
+func TestRenderHorizontalRuleSpansWidth(t *testing.T) {
+	out, err := Render("a\n\n---\n\nb", PlainStyle, 40)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, strings.Repeat("─", 40-2*documentMargin)) {
+		t.Fatalf("got %q", out)
 	}
 }

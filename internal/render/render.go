@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/glamour"
+	xansi "github.com/charmbracelet/x/ansi"
+	"github.com/muesli/termenv"
 )
 
 const (
@@ -46,14 +48,40 @@ func ResolveStyle(style string, darkBackground bool) string {
 	return "light"
 }
 
+// PlainStyle renders without colors or escape codes, for non-TTY output.
+const PlainStyle = "plain"
+
 func Render(markdown, style string, width int) (string, error) {
+	theme, ok := Theme(style, width)
+	if !ok {
+		return "", fmt.Errorf("unknown style %q", style)
+	}
+	profile := termenv.TrueColor
+	if style == PlainStyle {
+		profile = termenv.Ascii
+	}
 	renderer, err := glamour.NewTermRenderer(
-		glamour.WithStandardStyle(style),
+		glamour.WithStyles(theme),
+		glamour.WithColorProfile(profile),
 		glamour.WithWordWrap(width),
 		glamour.WithEmoji(),
 	)
 	if err != nil {
 		return "", fmt.Errorf("create renderer: %w", err)
 	}
-	return renderer.Render(markdown)
+	out, err := renderer.Render(markdown)
+	if err != nil || style != PlainStyle {
+		return out, err
+	}
+	return plain(out), nil
+}
+
+// plain strips the text attributes glamour still emits under the ASCII
+// profile, plus the trailing padding on every line.
+func plain(text string) string {
+	lines := strings.Split(xansi.Strip(text), "\n")
+	for i, line := range lines {
+		lines[i] = strings.TrimRight(line, " ")
+	}
+	return strings.Join(lines, "\n")
 }

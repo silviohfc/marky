@@ -144,7 +144,7 @@ func Run(args []string, env Env) int {
 }
 
 func display(cfg Config, env Env, name, markdown string) error {
-	style := "notty"
+	style := render.PlainStyle
 	if env.IsTTY {
 		style = render.ResolveStyle(cfg.Style, env.Dark())
 	}
