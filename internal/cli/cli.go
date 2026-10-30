@@ -7,6 +7,10 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
+
+	"github.com/silviohfc/marky/internal/pager"
+	"github.com/silviohfc/marky/internal/render"
 )
 
 var Version = "dev"
@@ -22,6 +26,16 @@ type Config struct {
 	ForcePrint  bool
 	ShowVersion bool
 	Path        string
+}
+
+type Env struct {
+	Stdin    io.Reader
+	Stdout   io.Writer
+	Stderr   io.Writer
+	IsTTY    bool
+	Size     func() (width, height int)
+	Dark     func() bool
+	RunPager func(name string, render pager.Renderer) error
 }
 
 func Parse(args []string, usageOut io.Writer) (Config, error) {
@@ -102,4 +116,59 @@ func ReadInput(path string, stdin io.Reader) (name, content string, err error) {
 	}
 	data, err := os.ReadFile(path)
 	return filepath.Base(path), string(data), err
+}
+
+func Run(args []string, env Env) int {
+	cfg, err := Parse(args, env.Stdout)
+	if errors.Is(err, ErrHelp) {
+		return 0
+	}
+	if err != nil {
+		fmt.Fprintf(env.Stderr, "marky: %v\nTry 'marky --help' for usage.\n", err)
+		return 2
+	}
+	if cfg.ShowVersion {
+		fmt.Fprintf(env.Stdout, "marky %s\n", Version)
+		return 0
+	}
+	name, markdown, err := ReadInput(cfg.Path, env.Stdin)
+	if err != nil {
+		fmt.Fprintf(env.Stderr, "marky: %v\n", err)
+		return 1
+	}
+	if err := display(cfg, env, name, markdown); err != nil {
+		fmt.Fprintf(env.Stderr, "marky: %v\n", err)
+		return 1
+	}
+	return 0
+}
+
+func display(cfg Config, env Env, name, markdown string) error {
+	style := "notty"
+	if env.IsTTY {
+		style = render.ResolveStyle(cfg.Style, env.Dark())
+	}
+	renderer := func(termWidth int) (string, error) {
+		width := render.ContentWidth(cfg.Width, termWidth, env.IsTTY)
+		out, err := render.Render(markdown, style, width)
+		if err != nil {
+			return "", err
+		}
+		return render.Center(out, termWidth, width), nil
+	}
+
+	termWidth, termHeight := env.Size()
+	out, err := renderer(termWidth)
+	if err != nil {
+		return err
+	}
+	if ShouldPage(cfg, env.IsTTY, countLines(out), termHeight) {
+		return env.RunPager(name, renderer)
+	}
+	_, err = io.WriteString(env.Stdout, out)
+	return err
+}
+
+func countLines(text string) int {
+	return strings.Count(strings.TrimRight(text, "\n"), "\n") + 1
 }
