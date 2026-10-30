@@ -7,13 +7,35 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 
 	"github.com/silviohfc/marky/internal/pager"
 	"github.com/silviohfc/marky/internal/render"
 )
 
-var Version = "dev"
+// Version overrides the version reported by --version. It can be set with
+// -ldflags "-X github.com/silviohfc/marky/internal/cli.Version=v1.2.3";
+// otherwise the module version Go stamps into the binary is used.
+var Version = ""
+
+func version() string {
+	info, ok := debug.ReadBuildInfo()
+	return resolveVersion(Version, info, ok)
+}
+
+// resolveVersion prefers an explicit version, then the module version from
+// the build info (set by go install pkg@vX and by go build in a tagged
+// checkout), and falls back to "dev".
+func resolveVersion(explicit string, info *debug.BuildInfo, ok bool) string {
+	if explicit != "" {
+		return explicit
+	}
+	if ok && info.Main.Version != "" && info.Main.Version != "(devel)" {
+		return info.Main.Version
+	}
+	return "dev"
+}
 
 var ErrHelp = flag.ErrHelp
 
@@ -133,7 +155,7 @@ func Run(args []string, env Env) int {
 		return 2
 	}
 	if cfg.ShowVersion {
-		fmt.Fprintf(env.Stdout, "marky %s\n", Version)
+		fmt.Fprintf(env.Stdout, "marky %s\n", version())
 		return 0
 	}
 	if cfg.Path == "" && env.StdinTTY {

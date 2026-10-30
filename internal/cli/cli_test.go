@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"testing"
 
@@ -222,7 +223,7 @@ func TestRunHelpExitsZero(t *testing.T) {
 
 func TestRunVersionPrintsVersion(t *testing.T) {
 	env, out, _, _ := newEnv("", false, 0, 0)
-	if code := Run([]string{"--version"}, env); code != 0 || !strings.Contains(out.String(), Version) {
+	if code := Run([]string{"--version"}, env); code != 0 || !strings.Contains(out.String(), version()) {
 		t.Fatalf("code=%d out=%q", code, out.String())
 	}
 }
@@ -249,5 +250,32 @@ func TestRunReadsTerminalStdinWhenDashIsExplicit(t *testing.T) {
 	env.StdinTTY = true
 	if code := Run([]string{"-"}, env); code != 0 || !strings.Contains(out.String(), "Typed") {
 		t.Fatalf("code=%d out=%q", code, out.String())
+	}
+}
+
+func TestResolveVersionPrefersExplicitValue(t *testing.T) {
+	info := &debug.BuildInfo{Main: debug.Module{Version: "v0.3.0"}}
+	if got := resolveVersion("v9.9.9", info, true); got != "v9.9.9" {
+		t.Fatalf("got %q", got)
+	}
+}
+
+func TestResolveVersionUsesModuleVersionFromBuildInfo(t *testing.T) {
+	info := &debug.BuildInfo{Main: debug.Module{Version: "v0.3.1"}}
+	if got := resolveVersion("", info, true); got != "v0.3.1" {
+		t.Fatalf("got %q", got)
+	}
+}
+
+func TestResolveVersionFallsBackToDev(t *testing.T) {
+	cases := map[string]*debug.BuildInfo{
+		"devel":   {Main: debug.Module{Version: "(devel)"}},
+		"empty":   {},
+		"no info": nil,
+	}
+	for name, info := range cases {
+		if got := resolveVersion("", info, info != nil); got != "dev" {
+			t.Errorf("%s: got %q", name, got)
+		}
 	}
 }
