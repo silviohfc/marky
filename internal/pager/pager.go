@@ -3,6 +3,7 @@ package pager
 import (
 	"fmt"
 	"math"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
@@ -11,9 +12,22 @@ import (
 
 const footerHeight = 1
 
-const keyHints = "q quit · j/k line · space/b page · d/u half · g/G top/bottom"
+const keyHints = "q quit · j/k scroll · space/b page · g/G top/bottom"
 
-var footerStyle = lipgloss.NewStyle().Reverse(true).Padding(0, 1)
+var (
+	accent  = lipgloss.AdaptiveColor{Light: "#8839EF", Dark: "#CBA6F7"}
+	onAccnt = lipgloss.AdaptiveColor{Light: "#EFF1F5", Dark: "#1E1E2E"}
+	muted   = lipgloss.AdaptiveColor{Light: "#8C8FA1", Dark: "#7F849C"}
+	track   = lipgloss.AdaptiveColor{Light: "#CCD0DA", Dark: "#45475A"}
+
+	nameStyle    = lipgloss.NewStyle().Bold(true).Foreground(onAccnt).Background(accent).Padding(0, 1)
+	hintStyle    = lipgloss.NewStyle().Foreground(muted).Padding(0, 1)
+	percentStyle = lipgloss.NewStyle().Bold(true).Foreground(accent).PaddingLeft(1)
+	fillStyle    = lipgloss.NewStyle().Foreground(accent)
+	trackStyle   = lipgloss.NewStyle().Foreground(track)
+)
+
+const progressWidth = 12
 
 type Renderer func(termWidth int) (string, error)
 
@@ -89,7 +103,17 @@ func offsetFor(progress float64, v viewport.Model) int {
 	return int(math.Round(progress * float64(maxOffset)))
 }
 
+// footer draws: [ name ] hints ............ ━━━━──── 42%
 func (m Model) footer() string {
-	text := fmt.Sprintf("%s  %d%%  %s", m.name, int(m.viewport.ScrollPercent()*100), keyHints)
-	return footerStyle.Width(m.width).MaxWidth(m.width).Render(text)
+	progress := m.viewport.ScrollPercent()
+	filled := int(math.Round(progress * progressWidth))
+	right := fillStyle.Render(strings.Repeat("━", filled)) +
+		trackStyle.Render(strings.Repeat("─", progressWidth-filled)) +
+		percentStyle.Render(fmt.Sprintf("%3d%% ", int(progress*100)))
+	left := nameStyle.Render(m.name) + hintStyle.Render(keyHints)
+	gap := m.width - lipgloss.Width(left) - lipgloss.Width(right)
+	if gap < 1 {
+		return lipgloss.NewStyle().MaxWidth(m.width).Render(nameStyle.Render(m.name) + " " + right)
+	}
+	return left + strings.Repeat(" ", gap) + right
 }
