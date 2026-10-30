@@ -38,6 +38,7 @@ const documentMargin = 2
 type layout struct {
 	fragment bool
 	quote    bool
+	head     bool // a table header cell
 }
 
 func (l layout) margin() int {
@@ -49,7 +50,7 @@ func (l layout) margin() int {
 
 // theme builds a glamour style that shows no Markdown syntax markers
 // (no #, *, ` or > tokens) and draws rules that span the given width.
-// Fenced code and quotes never reach glamour: see blocks.go.
+// Fenced code, quotes and tables never reach glamour: see blocks.go.
 func theme(p palette, width int, l layout) ansi.StyleConfig {
 	ruleWidth := max(1, width-2*l.margin())
 	document := ansi.StyleBlock{
@@ -61,6 +62,9 @@ func theme(p palette, width int, l layout) ansi.StyleConfig {
 	}
 	if l.quote {
 		document.Color, document.Italic = color(p.muted), boolPtr(true)
+	}
+	if l.head {
+		document.Color, document.Bold = color(p.primary), boolPtr(true)
 	}
 	return ansi.StyleConfig{
 		Document:  document,
@@ -106,12 +110,6 @@ func theme(p palette, width int, l layout) ansi.StyleConfig {
 				Margin:         uintPtr(documentMargin),
 			},
 			Theme: p.codeTheme,
-		},
-		Table: ansi.StyleTable{
-			StyleBlock:      ansi.StyleBlock{StylePrimitive: ansi.StylePrimitive{Color: color(p.text)}},
-			CenterSeparator: strPtr("┼"),
-			ColumnSeparator: strPtr("│"),
-			RowSeparator:    strPtr("─"),
 		},
 		DefinitionDescription: ansi.StylePrimitive{BlockPrefix: "\n→ "},
 	}

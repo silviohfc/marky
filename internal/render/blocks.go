@@ -15,8 +15,8 @@ import (
 )
 
 // Glamour draws fenced code with no container and double-wraps lists inside
-// quotes, pushing words outside the quote bar. So marky pulls fenced code and
-// quotes out of the Markdown, leaves a placeholder paragraph in their place,
+// quotes, pushing words outside the quote bar. So marky pulls fenced code,
+// quotes and tables (see table.go) out of the Markdown, leaves a placeholder paragraph in their place,
 // and draws them itself once glamour has laid out everything else.
 
 type blockKind int
@@ -24,12 +24,16 @@ type blockKind int
 const (
 	codeBlock blockKind = iota
 	quoteBlock
+	tableBlock
 )
 
 type block struct {
 	kind blockKind
 	lang string // code only
 	text string // code body, or the quote's Markdown without the > markers
+
+	rows   [][]string // table only: header first, then body rows
+	aligns []align    // table only: one per column
 }
 
 const (
@@ -66,6 +70,9 @@ func extractBlocks(markdown string) (string, []block) {
 		} else if m := quoteLine.FindStringSubmatch(lines[i]); m != nil {
 			indent = m[1]
 			b, next = readQuote(lines, i)
+		} else if t, end, ok := readTable(lines, i); ok {
+			indent = lines[i][:len(lines[i])-len(strings.TrimLeft(lines[i], " "))]
+			b, next = t, end
 		} else {
 			out = append(out, lines[i])
 			i++
@@ -174,8 +181,11 @@ func itemIndent(prefix string) int {
 }
 
 func drawBlock(b block, style string, width int) ([]string, error) {
-	if b.kind == codeBlock {
+	switch b.kind {
+	case codeBlock:
 		return drawCode(b, style, width)
+	case tableBlock:
+		return drawTable(b, style, width)
 	}
 	return drawQuote(b, style, width)
 }
