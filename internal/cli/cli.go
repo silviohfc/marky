@@ -180,13 +180,20 @@ func display(cfg Config, env Env, name, markdown string) error {
 	if env.IsTTY {
 		style = render.ResolveStyle(cfg.Style, env.Dark())
 	}
+	// The pager asks for the width it was just measured at, so the last
+	// result is kept to avoid rendering the document twice on open.
+	lastWidth, lastOut := -1, ""
 	renderer := func(termWidth int) (string, error) {
+		if termWidth == lastWidth {
+			return lastOut, nil
+		}
 		width := render.ContentWidth(cfg.Width, termWidth, env.IsTTY)
 		out, err := render.Render(markdown, style, width)
 		if err != nil {
 			return "", err
 		}
-		return render.Center(out, termWidth, width), nil
+		lastWidth, lastOut = termWidth, render.Center(out, termWidth, width)
+		return lastOut, nil
 	}
 
 	termWidth, termHeight := env.Size()

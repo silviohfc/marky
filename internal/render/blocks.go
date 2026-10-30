@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"fmt"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/alecthomas/chroma/v2"
 	"github.com/alecthomas/chroma/v2/formatters"
@@ -128,37 +130,74 @@ func trimIndent(line string, n int) string {
 // drawn block. width is the full line width glamour laid out.
 func insertBlocks(out string, blocks []block, style string, width int, l layout) (string, error) {
 	lines := strings.Split(out, "\n")
-	result := make([]string, 0, len(lines))
-	for _, line := range lines {
-		m := placeholder.FindStringSubmatchIndex(line)
-		if m == nil {
-			result = append(result, line)
+	type slot struct {
+		line   int // index in lines of the placeholder
+		block  int
+		prefix string
+		drawn  []string
+		err    error
+	}
+	var slots []slot
+	for i, line := range lines {
+		if !strings.Contains(line, "MARKYBLOCK") {
 			continue
 		}
-		index, _ := strconv.Atoi(line[m[2]:m[3]])
-		prefix := line[:m[0]]
+		if m := placeholder.FindStringSubmatchIndex(line); m != nil {
+			index, _ := strconv.Atoi(line[m[2]:m[3]])
+			slots = append(slots, slot{line: i, block: index, prefix: line[:m[0]]})
+		}
+	}
+	if len(slots) == 0 {
+		return out, nil
+	}
+
+	// Blocks are independent, and each one is a full glamour render, so
+	// they are drawn in parallel.
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, runtime.GOMAXPROCS(0))
+	for i := range slots {
+		s := &slots[i]
+		prefix := s.prefix
+		if hasText(prefix) {
+			prefix = strings.Repeat(" ", itemIndent(prefix))
+		}
+		available := max(minContent, width-xansi.StringWidth(prefix)-l.margin())
+		wg.Add(1)
+		sem <- struct{}{}
+		go func() {
+			defer func() { <-sem; wg.Done() }()
+			s.drawn, s.err = drawBlock(blocks[s.block], style, available)
+		}()
+	}
+	wg.Wait()
+
+	result := make([]string, 0, len(lines))
+	next := 0
+	for _, s := range slots {
+		if s.err != nil {
+			return "", s.err
+		}
+		result = append(result, lines[next:s.line]...)
+		next = s.line + 1
+		prefix := s.prefix
 		if hasText(prefix) {
 			// Glamour joins a list item's paragraphs onto one line, so the
 			// block may follow the item text: keep the text on its own line.
 			result = append(result, strings.TrimRight(prefix, " "))
 			prefix = strings.Repeat(" ", itemIndent(prefix))
 		}
-		prefixWidth := xansi.StringWidth(prefix)
-		available := max(minContent, width-prefixWidth-l.margin())
-		drawn, err := drawBlock(blocks[index], style, available)
-		if err != nil {
-			return "", err
-		}
 		// The first line keeps glamour's prefix (it may hold a list bullet);
 		// the rest are aligned under it.
-		for i, d := range drawn {
-			lead := strings.Repeat(" ", prefixWidth)
+		lead := strings.Repeat(" ", xansi.StringWidth(prefix))
+		for i, d := range s.drawn {
 			if i == 0 {
-				lead = prefix + reset
+				result = append(result, prefix+reset+d)
+				continue
 			}
 			result = append(result, lead+d)
 		}
 	}
+	result = append(result, lines[next:]...)
 	return strings.Join(result, "\n"), nil
 }
 

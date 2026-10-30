@@ -25,6 +25,7 @@ const (
 	cellGap      = " │ "
 	minColumn    = 3
 	preferColumn = 12
+	minWrap      = 16
 )
 
 var delimiterRow = regexp.MustCompile(`^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$`)
@@ -194,7 +195,11 @@ func columnWidths(rows [][]string, style string, available int) ([]int, error) {
 	word := make([]int, cols)
 	for _, row := range rows {
 		for c, text := range row {
-			plain, err := render(text, PlainStyle, 1<<16, layout{fragment: true})
+			// Glamour pads every line to the wrap width, so measuring at a huge
+			// width costs time in proportion to it. A cell renders no wider
+			// than twice its source (images add a short label), so that bound
+			// never wraps it.
+			plain, err := render(text, PlainStyle, 2*xansi.StringWidth(text)+minWrap, layout{fragment: true})
 			if err != nil {
 				return nil, err
 			}
