@@ -33,7 +33,7 @@ No `#`, `*`, `` ` `` or `>` on screen. Structure comes from color and typography
 <td width="50%" valign="top">
 
 🎨 **Modern theme**<br>
-Catppuccin Mocha on dark terminals, Latte on light ones. Code blocks get matching syntax highlighting.
+Catppuccin Mocha on dark terminals, Latte on light ones. Code sits on its own panel with a language label, and GitHub alerts (`[!NOTE]`, `[!TIP]`…) become colored callouts.
 
 </td>
 </tr>

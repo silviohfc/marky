@@ -24,4 +24,5 @@ func main() {
 | `marky a.md` | Render a file      |
 | `marky -`    | Read from stdin    |
 
-> Simplicity is prerequisite for reliability.
+> [!TIP]
+> Long documents open in a pager. Press `q` to leave.

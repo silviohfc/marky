@@ -33,7 +33,7 @@ Nada de `#`, `*`, `` ` `` ou `>` na tela. A estrutura vem das cores e da tipogra
 <td width="50%" valign="top">
 
 🎨 **Tema moderno**<br>
-Catppuccin Mocha em terminais escuros, Latte nos claros. Blocos de código com realce de sintaxe combinando.
+Catppuccin Mocha em terminais escuros, Latte nos claros. O código fica num painel próprio com o nome da linguagem, e os alertas do GitHub (`[!NOTE]`, `[!TIP]`…) viram callouts coloridos.
 
 </td>
 </tr>
